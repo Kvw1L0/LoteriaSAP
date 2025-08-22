@@ -3,12 +3,11 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <title>Lotería Neón</title>
+  <title>Lotería SAP</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
   <style>
     :root {
-      --neon-blue: #00A1E0;
-      --neon-pink: #FF00FF;
+      --electric-blue: #03DAC6;
       --dark-background: #1A1A2E;
       --glow-color: #E0F7FA;
     }
@@ -28,6 +27,14 @@
       justify-content: center;
       height: 100vh;
       box-sizing: border-box;
+    }
+
+    .main-title {
+        font-size: 3em;
+        font-weight: 700;
+        color: var(--electric-blue);
+        text-shadow: 0 0 8px var(--electric-blue), 0 0 15px white;
+        margin-bottom: 25px;
     }
 
     #carton-container {
@@ -51,7 +58,7 @@
       background-color: rgba(26, 26, 46, 0.8);
       border: 2px solid var(--glow-color);
       border-radius: 12px;
-      aspect-ratio: 1 / 1; /* Para que sea un cuadrado perfecto */
+      aspect-ratio: 1 / 1;
       display: flex;
       justify-content: center;
       align-items: center;
@@ -59,7 +66,7 @@
       font-weight: bold;
       cursor: pointer;
       box-shadow: 0 0 10px var(--glow-color);
-      transition: background-color 0.3s, color 0.3s, transform 0.2s;
+      transition: background-color 0.3s, color 0.3s, transform 0.2s, box-shadow 0.3s;
     }
 
     .celda:active {
@@ -67,10 +74,10 @@
     }
 
     .celda.marcada {
-      background-color: var(--neon-pink);
+      background-color: var(--electric-blue);
       color: white;
-      border-color: var(--neon-pink);
-      box-shadow: 0 0 15px var(--neon-pink), 0 0 25px var(--neon-pink);
+      border-color: var(--electric-blue);
+      box-shadow: 0 0 15px var(--electric-blue), 0 0 25px var(--electric-blue);
     }
 
     .carton-id {
@@ -85,22 +92,40 @@
       font-size: 1.2em;
       font-weight: bold;
       color: white;
-      background-color: var(--neon-blue);
+      background-color: #0077C6; /* Azul SAP para el botón */
       border: none;
       border-radius: 10px;
       cursor: pointer;
-      box-shadow: 0 0 15px var(--neon-blue);
+      box-shadow: 0 0 15px #0077C6;
       text-decoration: none;
-      transition: transform 0.2s;
+      transition: transform 0.2s, opacity 0.5s;
+      /* BOTÓN OCULTO INICIALMENTE */
+      opacity: 0;
+      pointer-events: none;
+    }
+    
+    .acciones .boton.visible {
+        opacity: 1;
+        pointer-events: auto;
     }
 
     .acciones .boton:active {
         transform: scale(0.95);
     }
 
+    #confetti-canvas {
+        position: fixed;
+        top: 0; left: 0; width: 100%; height: 100%;
+        pointer-events: none; z-index: 9999;
+    }
+
   </style>
 </head>
 <body>
+  
+  <canvas id="confetti-canvas"></canvas>
+
+  <h1 class="main-title">Lotería SAP</h1>
 
   <div id="carton-container">
     <div id="carton"></div>
@@ -110,37 +135,59 @@
     </div>
   </div>
 
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
   <script>
     const carton = document.getElementById("carton");
     const whatsappBtn = document.getElementById("whatsapp");
     const cartonIdVisual = document.getElementById("carton-id");
+    const confettiLauncher = confetti.create(document.getElementById('confetti-canvas'), { resize: true, useWorker: true });
 
-    // 1. Generar ID único
     const ID = "ID-" + Math.random().toString(36).substring(2, 8).toUpperCase();
     cartonIdVisual.textContent = "ID del cartón: " + ID;
 
-    // 2. Generar 6 números aleatorios del 1 al 20
     let numeros = Array.from({ length: 20 }, (_, i) => i + 1);
     numeros = numeros.sort(() => Math.random() - 0.5).slice(0, 6);
 
-    // 3. Crear y mostrar las celdas en el cartón
+    function checkCompletion() {
+        const celdasMarcadas = document.querySelectorAll(".celda.marcada").length;
+        if (celdasMarcadas === 6) {
+            whatsappBtn.classList.add("visible");
+            launchConfetti();
+        } else {
+            whatsappBtn.classList.remove("visible");
+        }
+    }
+
+    function launchConfetti() {
+        const duration = 3 * 1000;
+        const animationEnd = Date.now() + duration;
+        const colors = ['#0077C6', '#ADD8E6', '#FFFFFF', '#03DAC6'];
+        
+        function frame() {
+            confettiLauncher({ particleCount: 3, angle: 60, spread: 55, origin: { x: 0 }, colors: colors });
+            confettiLauncher({ particleCount: 3, angle: 120, spread: 55, origin: { x: 1 }, colors: colors });
+            if (Date.now() < animationEnd) {
+                requestAnimationFrame(frame);
+            }
+        }
+        frame();
+    }
+
     numeros.forEach(num => {
       const div = document.createElement("div");
       div.className = "celda";
       div.textContent = num;
-      // Funcionalidad para marcar/desmarcar
       div.onclick = () => {
         div.classList.toggle("marcada");
+        checkCompletion(); // Revisa si se completaron las 6 celdas
       };
       carton.appendChild(div);
     });
 
-    // 4. Funcionalidad del botón de WhatsApp
     whatsappBtn.onclick = () => {
       const celdas = document.querySelectorAll(".celda");
       const seleccionados = Array.from(celdas).map(c => c.textContent).join(", ");
-      const mensaje = `¡Este es mi cartón de Lotería Neón!\n\nNúmeros: ${seleccionados}\nID: ${ID}`;
-      // IMPORTANTE: Reemplaza el número de teléfono con el que deseas recibir el mensaje
+      const mensaje = `¡Completé mi cartón de Lotería SAP!\n\nNúmeros: ${seleccionados}\nID: ${ID}`;
       const numeroTelefono = "56986532423";
       const link = "https://wa.me/" + numeroTelefono + "?text=" + encodeURIComponent(mensaje);
       window.open(link, "_blank");
